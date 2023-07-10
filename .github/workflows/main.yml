@@ -6,9 +6,8 @@ env:
   GITHUB_DOCKER_IMAGE: "home-assistant-freepbx-arm"
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
   build-docker:
@@ -17,7 +16,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: benjlevesque/short-sha@v1.2
 
       - name: Log into registry ghcr.io
         uses: docker/login-action@v1
@@ -34,7 +32,7 @@ jobs:
       - name: Build Docker
         working-directory: ./home-assistant-freepbx-arm
         run: |
-          docker buildx build --platform linux/arm/v7 --no-cache -o type=docker -t $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }} .
+          docker buildx build --platform linux/arm/v7 --no-cache -o type=docker -t $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ github.event.release.tag_name }} .
       - name: Publish Docker
         run: |
-          docker push $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }}
+          docker push $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ github.event.release.tag_name }}
