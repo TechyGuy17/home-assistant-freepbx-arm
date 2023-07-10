@@ -32,8 +32,9 @@ jobs:
         uses: docker/setup-qemu-action@v2
 
       - name: Build Docker
+        working-directory: ./home-assistant-freepbx-arm
         run: |
-          docker buildx build --platform linux/arm/v7 --no-cache -t $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }} -f home-assistant-freepbx-arm/Dockerfile --push .
+          docker buildx build --platform linux/arm/v7 --no-cache -t $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }} --push .
       - name: Publish Docker
         run: |
           docker push $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }}
