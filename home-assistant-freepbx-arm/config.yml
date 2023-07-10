@@ -37,3 +37,4 @@ enviroment:
      #- TLS_KEY=key.pem
      ### Set your desired timezone
       - TZ= 'Europe/Stockholm'
+      - DEBUG_MODE=TRUE
