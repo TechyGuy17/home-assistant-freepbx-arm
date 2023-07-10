@@ -18,7 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: benjlevesque/short-sha@v1.2
-      - uses: uraimo/run-on-arch-action@v2
 
       - name: Log into registry ghcr.io
         uses: docker/login-action@v1
@@ -27,11 +26,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PASS }} 
 
-      - name: Build Docker
-        run: |
-          docker build  --no-cache -t $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }} -f home-assistant-freepbx-arm/Dockerfile .
+      - name: Build docker
+        uses: uraimo/run-on-arch-action@v2
         with:
           arch: armv7
+          run: |
+            docker build  --no-cache -t $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }} -f home-assistant-freepbx-arm/Dockerfile .
+        
+
       - name: Publish Docker
         run: |
           docker push $GITHUB_REGISTRY/$GITHUB_OWNER/$GITHUB_DOCKER_IMAGE:${{ env.SHA }}
