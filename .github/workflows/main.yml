@@ -18,7 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: benjlevesque/short-sha@v1.2
-      - uses: uraimo/run-on-arch-action@v2
 
       - name: Log into registry ghcr.io
         uses: docker/login-action@v1
