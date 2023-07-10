@@ -6,3 +6,34 @@ url: "https://github.com/TechyGuy17/home-assistant-freepbx-arm"
 image: "ghcr.io/techyguy17/home-assistant-freepbx-arm"
 arch:
  - armv7
+
+enviroment:
+      - VIRTUAL_HOST=asterisk.local
+      - VIRTUAL_NETWORK=nginx-proxy
+      ### If you want to connect to the SSL Enabled Container
+      #- VIRTUAL_PORT=443
+      #- VIRTUAL_PROTO=https
+      - VIRTUAL_PORT=81
+      - LETSENCRYPT_HOST=hostname.example.com
+      - LETSENCRYPT_EMAIL=email@example.com
+
+      - ZABBIX_HOSTNAME=freepbx-app
+
+      - RTP_START=18000
+      - RTP_FINISH=18100
+
+     ## Use for External MySQL Server
+      - DB_EMBEDDED=TRUE
+
+     ### These are only necessary if DB_EMBEDDED=FALSE
+     # - DB_HOST=freepbx-db
+     # - DB_PORT=3306
+     # - DB_NAME=asterisk
+     # - DB_USER=asterisk
+     # - DB_PASS=asteriskpass
+
+     ### If you are using TLS Support for Apache to listen on 443 in the container drop them in /certs and set these:
+     #- TLS_CERT=cert.pem
+     #- TLS_KEY=key.pem
+     ### Set your desired timezone
+      - TZ= 'Europe/Stockholm'
