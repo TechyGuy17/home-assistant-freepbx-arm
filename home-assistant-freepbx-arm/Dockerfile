@@ -1,8 +1,114 @@
-FROM tiredofit/nodejs:10-debian-latest
+###https://github.com/tiredofit/docker-debian/tree/buster
+FROM debian:buster AS epandi-debian-buster
 LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
 
 ### Set defaults
-ENV ASTERISK_VERSION=17.6.0 \
+ENV ZABBIX_VERSION=5.2 \
+    S6_OVERLAY_VERSION=v2.1.0.2 \
+    DEBUG_MODE=FALSE \
+    TIMEZONE=Etc/GMT \
+    DEBIAN_FRONTEND=noninteractive \
+    ENABLE_CRON=TRUE \
+    ENABLE_SMTP=TRUE \
+    ENABLE_ZABBIX=TRUE \
+    ZABBIX_HOSTNAME=debian.buster
+
+### Dependencies addon
+RUN set -x && \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+            apt-transport-https \
+            aptitude \
+            bash \
+            ca-certificates \
+            curl \
+            dirmngr \
+            dos2unix \
+            gnupg \
+            less \
+            logrotate \
+            msmtp \
+            nano \
+            net-tools \
+            netcat-openbsd \
+            procps \
+            sudo \
+            tzdata \
+            vim-tiny \
+            wget \
+            && \
+### curl https://repo.zabbix.com/zabbix-official-repo.key | apt-key add - && \
+### echo "deb http://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/debian buster main" >>/etc/apt/sources.list && \
+### echo "deb-src http://repo.zabbix.com/zabbix/${ZABBIX_VERSION}/debian buster main" >>/etc/apt/sources.list && \
+    wget https://repo.zabbix.com/zabbix/5.2/raspbian/pool/main/z/zabbix-release/zabbix-release_5.2-1+debian$(cut -d"." -f1 /etc/debian_version)_all.deb && \
+    dpkg -i zabbix-release_5.2-1+debian$(cut -d"." -f1 /etc/debian_version)_all.deb && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+            zabbix-agent && \
+    rm -rf /etc/zabbix/zabbix-agentd.conf.d/* && \
+    curl -ksSLo /usr/local/bin/MailHog https://github.com/mailhog/MailHog/releases/download/v1.0.0/MailHog_linux_arm && \
+    curl -ksSLo /usr/local/bin/mhsendmail https://github.com/mailhog/mhsendmail/releases/download/v0.2.0/mhsendmail_linux_arm && \
+    chmod +x /usr/local/bin/MailHog && \
+    chmod +x /usr/local/bin/mhsendmail && \
+    useradd -r -s /bin/false -d /nonexistent mailhog && \
+    apt-get autoremove -y && \
+    apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/* /root/.gnupg /var/log/* /etc/logrotate.d && \
+    mkdir -p /assets/cron && \
+    rm -rf /etc/timezone && \
+    ln -snf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime && \
+    echo "${TIMEZONE}" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    echo '%zabbix ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
+    \
+### S6 installation
+    curl -ksSL https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/s6-overlay-arm.tar.gz | tar xfz - --strip 0 -C /
+
+### Networking configuration
+EXPOSE 1025 8025 10050/TCP
+
+### Add folders
+ADD debian-buster/install /
+
+### Entrypoint configuration
+ENTRYPOINT ["/init"]
+
+
+
+###https://github.com/tiredofit/docker-nodejs/tree/10/debian
+FROM epandi-debian-buster AS epandi-nodejs-10-debian-latest
+LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
+
+### Environment variables
+ENV ENABLE_CRON=FALSE \
+    ENABLE_SMTP=FALSE
+
+### Add users
+RUN adduser --home /app --gecos "Node User" --disabled-password nodejs && \
+\
+### Install NodeJS
+    wget --no-check-certificate -qO - https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add - && \
+    echo 'deb https://deb.nodesource.com/node_10.x buster main' > /etc/apt/sources.list.d/nodesource.list && \
+    echo 'deb-src https://deb.nodesource.com/node_10.x buster main' >> /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y \
+            nodejs \
+            yarn \
+            && \
+    \
+    apt-get clean && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+
+
+###https://github.com/tiredofit/docker-freepbx
+FROM epandi-nodejs-10-debian-latest
+LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
+
+### Set defaults
+ENV ASTERISK_VERSION=17.9.3 \
     BCG729_VERSION=1.0.4 \
     DONGLE_VERSION=20200610 \
     G72X_CPUHOST=penryn \
@@ -14,7 +120,8 @@ ENV ASTERISK_VERSION=17.6.0 \
     RTP_FINISH=20000
 
 ### Pin libxml2 packages to Debian repositories
-RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
+RUN c_rehash && \
+    echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
     echo "Pin: release o=Debian,n=buster" >> /etc/apt/preferences.d/libxml2 && \
     echo "Pin-Priority: 501" >> /etc/apt/preferences.d/libxml2 && \
     APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=TRUE && \
@@ -23,10 +130,13 @@ RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
     set -x && \
     curl https://packages.sury.org/php/apt.gpg | apt-key add - && \
     echo "deb https://packages.sury.org/php/ buster main" > /etc/apt/sources.list.d/deb.sury.org.list && \
-    curl https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc | apt-key add - && \
-    echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/${MONGODB_VERSION} main" > /etc/apt/sources.list.d/mongodb-org.list && \
+#    curl https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc | apt-key add - && \
+#    echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/${MONGODB_VERSION} main" > /etc/apt/sources.list.d/mongodb-org.list && \
     echo "deb http://ftp.us.debian.org/debian/ buster-backports main" > /etc/apt/sources.list.d/backports.list && \
     echo "deb-src http://ftp.us.debian.org/debian/ buster-backports main" >> /etc/apt/sources.list.d/backports.list && \
+    wget https://archive.raspbian.org/raspbian.public.key -O - | sudo apt-key add - && \
+    echo "deb http://archive.raspbian.org/raspbian buster main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb-src http://archive.raspbian.org/raspbian buster main contrib non-free" >>/etc/apt/sources.list && \
     apt-get update && \
     apt-get -o Dpkg::Options::="--force-confold" upgrade -y && \
     \
@@ -84,7 +194,7 @@ RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
                         libvpb-dev \
                         libxml2-dev \
                         libxslt1-dev \
-                        linux-headers-amd64 \
+                        linux-headers-armmp \
                         portaudio19-dev \
                         python-dev \
                         subversion \
@@ -130,9 +240,8 @@ RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
                     make \
                     mariadb-client \
                     mariadb-server \
-                    mongodb-org \
+                    mongodb \
                     mpg123 \
-                    odbc-mariadb \
                     php${PHP_VERSION} \
                     php${PHP_VERSION}-curl \
                     php${PHP_VERSION}-cli \
@@ -160,9 +269,25 @@ RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
                     whois \
                     xmlstarlet && \
     \
+### Usbutils addon
+    apt-get install usbutils unzip autoconf automake -y && \
+    \  
 ### Add users
     addgroup --gid 2600 asterisk && \
     adduser --uid 2600 --gid 2600 --gecos "Asterisk User" --disabled-password asterisk && \
+    \
+### Build MardiaDB connector
+    apt-get install -y cmake gcc && \
+    cd /usr/src && \
+    git clone https://github.com/MariaDB/mariadb-connector-odbc.git && \
+    cd mariadb-connector-odbc && \
+    git checkout tags/3.1.1-ga && \
+    mkdir build && \
+    cd build && \
+    cmake ../ -LH -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_SSL=OPENSSL\
+    -DDM_DIR=/usr/lib/arm-linux-gnueabihf -DCMAKE_C_FLAGS_RELEASE:STRING="-w" && \
+    cmake --build . --config Release && \
+    make install && \
     \
 ### Build SpanDSP
     mkdir -p /usr/src/spandsp && \
@@ -241,7 +366,7 @@ RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
     curl https://bitbucket.org/arkadi/asterisk-g72x/get/master.tar.gz | tar xvfz - --strip 1 -C /usr/src/asterisk-g72x && \
     cd /usr/src/asterisk-g72x && \
     ./autogen.sh && \
-    ./configure --prefix=/usr --with-bcg729 --enable-$G72X_CPUHOST && \
+    ./configure CFLAGS='-march=armv7' --prefix=/usr --with-bcg729 --enable-$G72X_CPUHOST && \
     make && \
     make install && \
     \
@@ -305,4 +430,4 @@ RUN echo "Package: libxml2*" > /etc/apt/preferences.d/libxml2 && \
 EXPOSE 80 443 4445 4569 5060/udp 5160/udp 5061 5161 8001 8003 8008 8009 8025 ${RTP_START}-${RTP_FINISH}/udp
 
 ### Files add
-ADD install /
+ADD freepbx-15/install /
