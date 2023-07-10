@@ -427,7 +427,7 @@ RUN c_rehash && \
     ln -s /data/etc/asterisk /etc/asterisk
 
 ### Networking configuration
-EXPOSE 80 443 4445 4569 5060/udp 5160/udp 5061 5161 8001 8003 8008 8009 8025 ${RTP_START}-${RTP_FINISH}/udp
+EXPOSE 443 4445 4569 5060/udp 5160/udp 5061 5161 8001 8003 8008 8009 8025 ${RTP_START}-${RTP_FINISH}/udp
 
 ### Files add
 ADD freepbx-15/install /

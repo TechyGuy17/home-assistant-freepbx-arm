@@ -1,5 +1,5 @@
 name: FreePBX
-version: "0.0.1"
+version: "0.0.2"
 slug: freepbx
 description: FreePBX is a web-based open-source graphical user interface that manages Asterisk, a voice over IP and telephony server.
 url: "https://github.com/TechyGuy17/home-assistant-freepbx-arm"
